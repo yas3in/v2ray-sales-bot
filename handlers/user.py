@@ -18,18 +18,18 @@ import database.crud as crud
 from keyboards.inline import back_to_main_kb, main_menu_kb, tariffs_kb, user_configs_kb
 from services.xui_api import xui_client
 from utils.states import BuyConfigFSM
+from utils.decorator import require_user_and_text
 
 logger = logging.getLogger(__name__)
 router = Router(name="user")
 
 
-# ── /start ────────────────────────────────────
-
+@require_user_and_text
 @router.message(CommandStart())
 async def cmd_start(message: Message, session: AsyncSession) -> None:
-    if not message.from_user or not message.text:
-        return
     
+    assert message.from_user
+
     user = await crud.get_or_create_user(
         session, message.from_user.id,
         message.from_user.username, message.from_user.full_name,
@@ -66,13 +66,10 @@ async def cb_show_balance(query: CallbackQuery, session: AsyncSession) -> None:
         
     text = f"💰 <b>موجودی کیف پول</b>\n\n<b>{user.balance:,.0f} تومان</b>"
     
-    # ── فیکس Pylance (edit_text) ──
     if isinstance(query.message, Message):
         await query.message.edit_text(text, reply_markup=back_to_main_kb())
     await query.answer()
 
-
-# ── خرید — مرحله ۱: نمایش بسته‌ها ───────────
 
 @router.callback_query(F.data == "buy_config")
 async def cb_buy_config(query: CallbackQuery, session: AsyncSession) -> None:
@@ -83,17 +80,13 @@ async def cb_buy_config(query: CallbackQuery, session: AsyncSession) -> None:
         
     text = "📦 <b>انتخاب بسته</b>\n\nیک بسته را انتخاب کنید:"
     
-    # ── فیکس Pylance (edit_text) ──
     if isinstance(query.message, Message):
         await query.message.edit_text(text, reply_markup=tariffs_kb(tariffs))
     await query.answer()
 
 
-# ── خرید — مرحله ۲: بررسی موجودی کیف پول ────
-
 @router.callback_query(F.data.startswith("tariff:"))
 async def cb_select_tariff(query: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
-    # ── فیکس Pylance (split) ──
     if not query.data:
         await query.answer("خطا در دیتای ورودی!", show_alert=True)
         return
@@ -130,18 +123,17 @@ async def cb_select_tariff(query: CallbackQuery, session: AsyncSession, state: F
         "<i>مثال: ali.rezaei یا user123</i>"
     )
     
-    # ── فیکس Pylance (edit_text) ──
     if isinstance(query.message, Message):
         await query.message.edit_text(text)
 
 
-# ── خرید — مرحله ۳: دریافت ایمیل و ساخت کلاینت
-
+@require_user_and_text
 @router.message(BuyConfigFSM.waiting_config_name)
 async def process_email_input(message: Message, session: AsyncSession, state: FSMContext) -> None:
-    if not message.from_user or not message.text:
-        return
-        
+
+    assert message.from_user
+    assert message.text
+
     raw_email = message.text.strip().lower()
 
     if not re.match(r'^[a-z0-9][a-z0-9.\-_]{1,30}[a-z0-9]$', raw_email):
@@ -223,7 +215,6 @@ async def process_email_input(message: Message, session: AsyncSession, state: FS
             tariff_id=tariff_id,
             panel_email=created.email,
             panel_uuid=created.uuid,
-            panel_sub_id=created.sub_id,
             inbound_id=inbound_id,
             sub_link=created.sub_link,
             label=raw_email,
@@ -252,8 +243,6 @@ async def process_email_input(message: Message, session: AsyncSession, state: FS
     )
 
 
-# ── سرویس‌های من ──────────────────────────────
-
 @router.callback_query(F.data == "my_configs")
 async def cb_my_configs(query: CallbackQuery, session: AsyncSession) -> None:
     configs = await crud.get_user_configs(session, query.from_user.id)
@@ -261,7 +250,6 @@ async def cb_my_configs(query: CallbackQuery, session: AsyncSession) -> None:
         await query.answer("هنوز سرویسی خریداری نکرده‌اید.", show_alert=True)
         return
         
-    # ── فیکس Pylance (edit_text) ──
     if isinstance(query.message, Message):
         await query.message.edit_text(
             "📋 <b>سرویس‌های شما</b>",
@@ -270,11 +258,8 @@ async def cb_my_configs(query: CallbackQuery, session: AsyncSession) -> None:
     await query.answer()
 
 
-# ── اطلاعات لحظه‌ای سرویس ────────────────────
-
 @router.callback_query(F.data.startswith("config_info:"))
 async def cb_config_info(query: CallbackQuery, session: AsyncSession) -> None:
-    # ── فیکس Pylance (split) ──
     if not query.data:
         await query.answer("دیتای کالبک نامعتبر است!", show_alert=True)
         return

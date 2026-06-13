@@ -13,6 +13,8 @@ import database.crud as crud
 from config import settings
 from keyboards.inline import admin_menu_kb, admin_tariffs_kb, back_to_main_kb, back_to_admin_kb
 
+from services.xui_api import xui_client
+
 logger = logging.getLogger(__name__)
 router = Router(name="admin")
 
@@ -45,12 +47,11 @@ class AdminUserSearchFSM(StatesGroup):
     waiting_query = State()
 
 
-# ── /admin ────────────────────────────────────
-
 @router.message(Command("admin"))
 async def cmd_admin(message: Message) -> None:
     if not is_admin(message.from_user.id): return
     await message.answer("🛠 <b>پنل مدیریت</b>", reply_markup=admin_menu_kb())
+
 
 @router.callback_query(F.data == "admin_menu")
 async def cb_admin_menu(query: CallbackQuery) -> None:
@@ -59,8 +60,6 @@ async def cb_admin_menu(query: CallbackQuery) -> None:
     await query.message.edit_text("🛠 <b>پنل مدیریت</b>", reply_markup=admin_menu_kb())
     await query.answer()
 
-
-# ── شارژ/کسر کیف پول ─────────────────────────
 
 @router.callback_query(F.data == "admin_charge")
 async def cb_admin_charge(query: CallbackQuery, state: FSMContext) -> None:

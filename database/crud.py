@@ -78,7 +78,6 @@ async def create_user_config(
     tariff_id: int,
     panel_email: str,
     panel_uuid: str,
-    panel_sub_id: str,
     inbound_id: int,
     sub_link: str,
     label: Optional[str] = None,
@@ -86,8 +85,8 @@ async def create_user_config(
     cfg = UserConfig(
         user_id=user_id, tariff_id=tariff_id,
         panel_email=panel_email, panel_uuid=panel_uuid,
-        panel_sub_id=panel_sub_id, inbound_id=inbound_id,
-        sub_link=sub_link, label=label,
+        inbound_id=inbound_id, sub_link=sub_link, 
+        label=label,
     )
     session.add(cfg)
     await session.flush()
@@ -105,9 +104,7 @@ async def get_config_by_id(session: AsyncSession, config_id: int) -> Optional[Us
     r = await session.execute(select(UserConfig).where(UserConfig.id == config_id))
     return r.scalar_one_or_none()
 
-# ── اضافه شده جهت فیکس ارور هندلر و دیتابیس لوکال ──
 async def get_config_by_email(session: AsyncSession, panel_email: str) -> Optional[UserConfig]:
-    """بررسی وجود کانفیگ در دیتابیس محلی برای جلوگیری از خطای یونیک کانتیرنت"""
     r = await session.execute(select(UserConfig).where(UserConfig.panel_email == panel_email))
     return r.scalar_one_or_none()
 

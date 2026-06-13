@@ -50,9 +50,8 @@ class UserConfig(Base):
     tariff_id: Mapped[int] = mapped_column(Integer, ForeignKey("tariffs.id"))
 
     # اطلاعات کلاینت ساخته‌شده در پنل
-    panel_email: Mapped[str] = mapped_column(String(256), unique=True)  # email در پنل
-    panel_uuid: Mapped[str] = mapped_column(String(64))                 # UUID کلاینت
-    panel_sub_id: Mapped[str] = mapped_column(String(64))               # subId برای sub_link
+    panel_email: Mapped[str] = mapped_column(String(256), unique=True)
+    panel_uuid: Mapped[str] = mapped_column(String(64))
     inbound_id: Mapped[int] = mapped_column(Integer)
 
     sub_link: Mapped[str] = mapped_column(Text)
@@ -82,4 +81,3 @@ class BotSettings(Base):
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
-    # کلیدها: active_inbound_id

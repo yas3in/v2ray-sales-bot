@@ -6,6 +6,9 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+import secrets
+import string
+
 
 import aiohttp
 
@@ -20,8 +23,8 @@ _JSON_OPTS: Dict[str, Any] = {"content_type": None}
 class CreatedClient:
     email:    str
     uuid:     str
-    sub_id:   str
     sub_link: str
+    sub_id:    str
 
 
 @dataclass
@@ -53,8 +56,6 @@ class XUIClient:
         self._session:    Optional[aiohttp.ClientSession] = None
         self._logged_in:  bool = False
         self.base_url:    str  = settings.XUI_BASE_URL.rstrip("/")
-
-    # ─── Session ──────────────────────────────
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -173,11 +174,14 @@ class XUIClient:
         
         raw_key = secrets.token_bytes(32)
         client_password = base64.b64encode(raw_key).decode('utf-8')
-        sub_id      = secrets.token_hex(8).lower()
         expiry_ms   = int((datetime.now() + timedelta(days=duration_days)).timestamp() * 1000)
         total_bytes = int(data_limit_gb * 1024 ** 3) if data_limit_gb > 0 else 0
+        sub_id = self.generate_subid()
+        print(sub_id)
+        sub_link = self._make_sub_link(sub_id)
 
         new_client = {
+            "subId":      sub_id,
             "password":   client_password,
             "email":      email,
             "totalGB":    total_bytes,
@@ -206,14 +210,13 @@ class XUIClient:
             logger.error("❌ addClient failed for %s. Response: %s", email, result)
             return None
 
-        sub_link = self._make_sub_link(sub_id)
         logger.info("✅ Client added independently: email=%s", email)
 
         return CreatedClient(
             email=email,
             uuid=client_password,
-            sub_id=sub_id,
             sub_link=sub_link,
+            sub_id=sub_id
         )
 
 
@@ -236,11 +239,14 @@ class XUIClient:
             enable=obj.get("enable", True),
         )
 
-    # ─── Sub Link ─────────────────────────────
-
     def _make_sub_link(self, sub_id: str) -> str:
         path = settings.SUB_PATH.rstrip("/") + "/"
         return f"{settings.SUB_DOMAIN}:{settings.SUB_PORT}{path}{sub_id}"
+
+    def generate_subid(self, length: int = 16) -> str:
+        alphabet = string.ascii_lowercase + string.digits
+        return ''.join(secrets.choice(alphabet) for _ in range(length))
+
 
 
 xui_client = XUIClient()
